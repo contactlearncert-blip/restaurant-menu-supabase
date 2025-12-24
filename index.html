@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="public, max-age=300">
+  <title>Menu du Restaurant</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+    body { background:#f8f4f0; color:#333; padding:0; margin:0; height:100vh; display:flex; flex-direction:column; }
+    .header { display:flex; align-items:center; justify-content:space-between; padding:20px 15px; background:#fdfaf7; box-shadow:0 2px 6px rgba(0,0,0,0.05); gap:20px; flex-wrap:wrap; max-width:1000px; margin:0 auto; width:100%; }
+    .header-title { font-size:1.8rem; color:#5d4037; white-space:nowrap; }
+    .search-bar { flex:1; min-width:200px; max-width:400px; }
+    .search-bar input { width:100%; padding:12px; font-size:1rem; border:1px solid #ccc; border-radius:8px; display:block; }
+    .categories { display:flex; flex-wrap:wrap; gap:10px; margin:0 auto 20px; justify-content:center; max-width:800px; }
+    .category-btn { padding:8px 16px; background:#e0d6cc; border:none; border-radius:20px; cursor:pointer; transition:background 0.3s; font-weight:500; }
+    .category-btn.active, .category-btn:hover { background:#5d4037; color:white; }
+    .menu-grid { flex:1; overflow-y:auto; padding:15px 15px 70px 15px; display:grid; grid-template-columns:1fr; gap:20px; background:#f8f4f0; }
+    .menu-item { background:white; border-radius:12px; padding:16px; box-shadow:0 3px 8px rgba(0,0,0,0.08); display:flex; flex-direction:column; justify-content:flex-start; height:320px; overflow:hidden; }
+    .menu-item.selected { border:2px solid #8b5e3c; box-shadow:0 0 0 2px #8b5e3c; }
+    .menu-item img { width:100%; height:140px; object-fit:cover; border-radius:8px; margin-bottom:12px; flex-shrink:0; background:#f5f5f5; }
+    .menu-item h3 { font-size:1.25rem; color:#5d4037; margin-bottom:8px; flex-shrink:0; }
+    .menu-item p { font-size:0.95rem; color:#666; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin:0 0 8px 0; flex-shrink:1; }
+    .menu-item .price { font-weight:bold; color:#8b5e3c; font-size:1.1rem; align-self:flex-start; margin-top:0; flex-shrink:0; }
+    .empty-message { text-align:center; color:#888; font-style:italic; padding:40px; grid-column:1 / -1; }
+    @media (max-width:600px) { .header { flex-direction:column; align-items:stretch; gap:15px; } .header-title { font-size:1.5rem; text-align:center; } .search-bar { min-width:auto; } }
+    @media (min-width:768px) { .menu-grid { grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); } }
+    .order-btn-fixed { position:fixed; bottom:0; left:0; width:100%; background:#5d4037; color:white; text-align:center; padding:14px; font-size:1.1rem; border:none; cursor:pointer; z-index:1000; box-shadow:0 -2px 6px rgba(0,0,0,0.2); }
+    .order-btn-fixed:disabled { background:#a59690; cursor:not-allowed; }
+    .order-btn-fixed.success { background:#388e3c; }
+    .order-btn-fixed.pending { background:#ffa726; }
+    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+    .modal-content { background:white; padding:20px; border-radius:10px; width:90%; max-width:400px; text-align:center; }
+    .modal input { width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px; }
+    .modal button { padding:8px 16px; margin:5px; border:none; border-radius:4px; cursor:pointer; }
+    .modal .confirm-btn { background:#388e3c; color:white; }
+    .modal .cancel-btn { background:#f44336; color:white; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">Menu du Restaurant</div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Rechercher un plat…" />
+    </div>
+  </div>
+  <nav class="categories" id="categoriesNav"></nav>
+  <div class="menu-grid" id="menuList">
+    <div class="menu-item" style="opacity:0.5;"><div style="height:140px;"></div><h3>Chargement…</h3><p></p><div class="price"></div></div>
+    <div class="menu-item" style="opacity:0.5;"><div style="height:140px;"></div><h3>Chargement…</h3><p></p><div class="price"></div></div>
+  </div>
+  <button id="orderBtn" class="order-btn-fixed" disabled onclick="showOrderForm()">Passer la commande</button>
+  <div id="tableModal" class="modal">
+    <div class="modal-content">
+      <h3>📍 Numéro de table</h3>
+      <input type="number" id="tableNumberInput" placeholder="Ex: 5" min="1" required />
+      <div style="margin-top:15px;">
+        <button class="confirm-btn" onclick="submitOrder()">Valider</button>
+        <button class="cancel-btn" onclick="closeModal()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ✅ CONFIGURATION SUPABASE (à remplacer par ta vraie clé anon)
+    const SUPABASE_URL = 'https://anadvqaizeineseakpjq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYWR2cWFpemVpbmVzZWFrcGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1OTQzNDgsImV4cCI6MjA4MjE3MDM0OH0.VC92qydx99sEs0Hylet0XfmmAw87fbSvc2dQq1wfUbg'; // ← REMPLACE PAR TA CLÉ ANON
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const publicId = urlParams.get('token');
+    if (!publicId || !publicId.startsWith('rest_')) {
+      document.getElementById('menuList').innerHTML = '<div class="empty-message">❌ Lien invalide.</div>';
+      throw new Error("ID de restaurant manquant");
+    }
+
+    let menuItems = [];
+    let selectedItems = [];
+    let currentOrderId = null;
+    let currentCategory = 'all';
+
+    async function loadMenu() {
+      try {
+        const { data: restaurant, error } = await supabase
+          .from('restaurants')
+          .select('id')
+          .eq('public_id', publicId)
+          .single();
+        if (error) throw error;
+
+        const { data: dishes, error: err2 } = await supabase
+          .from('dishes')
+          .select('*')
+          .eq('restaurant_id', restaurant.id)
+          .order('name', { ascending: true });
+        if (err2) throw err2;
+
+        menuItems = dishes;
+        renderCategories();
+        renderMenu();
+      } catch (err) {
+        console.error(err);
+        document.getElementById('menuList').innerHTML = '<div class="empty-message">❌ Erreur de chargement.</div>';
+      }
+    }
+
+    function getUniqueCategories(items) {
+      const cats = new Set(items.map(item => item.category));
+      return ['all', ...Array.from(cats)];
+    }
+
+    function renderCategories() {
+      const nav = document.getElementById('categoriesNav');
+      if (menuItems.length === 0) { nav.innerHTML = ''; return; }
+      const categories = getUniqueCategories(menuItems);
+      nav.innerHTML = categories.map(cat => {
+        const label = cat === 'all' ? 'Tout' : cat.charAt(0).toUpperCase() + cat.slice(1);
+        return `<button class="category-btn ${cat === 'all' ? 'active' : ''}" data-category="${cat}">${label}</button>`;
+      }).join('');
+
+      nav.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          nav.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCategory = btn.dataset.category;
+          renderMenu();
+        });
+      });
+    }
+
+    function renderMenu() {
+      const container = document.getElementById('menuList');
+      let filtered = menuItems;
+      if (currentCategory !== 'all') {
+        filtered = filtered.filter(item => item.category === currentCategory);
+      }
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      if (searchTerm) {
+        filtered = filtered.filter(item =>
+          item.name.toLowerCase().includes(searchTerm) || (item.description && item.description.toLowerCase().includes(searchTerm))
+        );
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-message">Aucun plat trouvé.</div>';
+      } else {
+        container.innerHTML = filtered.map(item => {
+          const isSelected = selectedItems.some(s => s.id === item.id);
+          const priceStr = `${item.price.toFixed(2)} MAD`;
+          const imgUrl = item.image_path 
+            ? `${SUPABASE_URL}/storage/v1/object/public/menu-images/${item.image_path}`
+            : '';
+
+          return `
+            <div class="menu-item ${isSelected ? 'selected' : ''}" onclick="toggleSelect('${item.id}')">
+              ${imgUrl ? `<img src="" data-src="${imgUrl}" class="lazy" onerror="this.style.display='none'" />` : '<div style="height:140px; background:#f0f0f0; border-radius:8px;"></div>'}
+              <h3>${item.name}</h3>
+              <p>${item.description || ''}</p>
+              <div class="price">${priceStr}</div>
+            </div>
+          `;
+        }).join('');
+        lazyLoadImages();
+      }
+
+      const btn = document.getElementById('orderBtn');
+      if (selectedItems.length === 0) {
+        btn.textContent = 'Passer la commande';
+        btn.disabled = true;
+        btn.className = 'order-btn-fixed';
+        currentOrderId = null;
+      } else if (currentOrderId) {
+        btn.textContent = '✅ Commande envoyée !';
+        btn.className = 'order-btn-fixed success';
+      } else {
+        btn.textContent = 'Passer la commande';
+        btn.disabled = false;
+        btn.className = 'order-btn-fixed';
+      }
+    }
+
+    function lazyLoadImages() {
+      const lazyImages = document.querySelectorAll('.lazy');
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const img = entry.target;
+              img.src = img.dataset.src;
+              img.classList.remove('lazy');
+              observer.unobserve(img);
+            }
+          });
+        });
+        lazyImages.forEach(img => observer.observe(img));
+      } else {
+        lazyImages.forEach(img => img.src = img.dataset.src);
+      }
+    }
+
+    function toggleSelect(itemId) {
+      const item = menuItems.find(i => i.id === itemId);
+      const index = selectedItems.findIndex(i => i.id === itemId);
+      if (index >= 0) {
+        selectedItems.splice(index, 1);
+      } else {
+        selectedItems.push(item);
+      }
+      renderMenu();
+      if (selectedItems.length > 0 && !currentOrderId) {
+        document.getElementById('orderBtn').scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }
+
+    function showOrderForm() {
+      document.getElementById('tableModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('tableModal').style.display = 'none';
+    }
+
+    async function submitOrder() {
+      const tableNumber = parseInt(document.getElementById('tableNumberInput').value);
+      if (!tableNumber || isNaN(tableNumber)) {
+        alert("Numéro de table invalide.");
+        return;
+      }
+
+      try {
+        const { data: restaurant, error } = await supabase
+          .from('restaurants')
+          .select('id')
+          .eq('public_id', publicId)
+          .single();
+        if (error) throw error;
+
+        // ✅ Créer la commande via Edge Function (plus sécurisé)
+        const response = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            restaurant_id: restaurant.id,
+            table_number: tableNumber,
+            items: selectedItems.map(item => ({ dish_id: item.id }))
+          })
+        });
+
+        if (!response.ok) throw new Error('Erreur commande');
+
+        // Succès
+        currentOrderId = 'sent';
+        document.getElementById('orderBtn').textContent = '✅ Commande envoyée !';
+        document.getElementById('orderBtn').className = 'order-btn-fixed success';
+        closeModal();
+        setTimeout(() => {
+          selectedItems = [];
+          currentOrderId = null;
+          renderMenu();
+        }, 5000);
+
+      } catch (err) {
+        console.error(err);
+        alert("❌ Erreur lors de l'envoi.");
+        document.getElementById('orderBtn').textContent = 'Passer la commande';
+        document.getElementById('orderBtn').className = 'order-btn-fixed';
+      }
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderMenu);
+    loadMenu();
+  </script>
+</body>
+</html>

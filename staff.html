@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Staff - Restaurant</title>
+  <style>
+    body { font-family:'Segoe UI',sans-serif; background:#f4f4f4; padding:20px; margin:0; }
+    .header { text-align:center; color:#5d4037; margin-bottom:20px; padding-top:30px; }
+    .stats { display:flex; gap:20px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+    .stat-card { background:white; border-radius:10px; padding:15px; min-width:200px; box-shadow:0 2px 6px rgba(0,0,0,0.1); text-align:center; }
+    .stat-value { font-size:1.5rem; font-weight:bold; color:#8b5e3c; }
+    .tabs { display:flex; gap:10px; margin-bottom:20px; justify-content:center; }
+    .tab-btn { padding:10px 20px; background:#e0d6cc; border:none; border-radius:20px; cursor:pointer; font-weight:500; }
+    .tab-btn.active { background:#5d4037; color:white; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .order-card { background:white; border-radius:10px; padding:15px; margin-bottom:15px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    .order-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .order-table { font-weight:bold; color:#d32f2f; font-size:1.1rem; }
+    .order-items { margin:10px 0; font-size:0.95rem; color:#555; }
+    .confirm-btn, .delete-btn { padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-left:5px; }
+    .confirm-btn { background:#388e3c; color:white; }
+    .delete-btn { background:#f44336; color:white; }
+    .no-orders { text-align:center; color:#888; font-style:italic; padding:30px; }
+  </style>
+</head>
+<body>
+  <div class="header"><h1>📋 Dashboard Staff</h1></div>
+  <div class="stats">
+    <div class="stat-card">
+      <div>Chiffre d’affaires aujourd’hui</div>
+      <div class="stat-value" id="totalSales">0 MAD</div>
+    </div>
+    <div class="stat-card">
+      <div>Commandes validées</div>
+      <div class="stat-value" id="ordersCount">0</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="pending">En Attente</button>
+    <button class="tab-btn" data-tab="confirmed">Validées</button>
+  </div>
+
+  <div id="pendingTab" class="tab-content active">
+    <h2>📦 Commandes en Attente</h2>
+    <div id="pendingOrders"><div class="no-orders">Chargement…</div></div>
+  </div>
+  <div id="confirmedTab" class="tab-content">
+    <h2>✅ Commandes Validées</h2>
+    <div id="confirmedOrders"><div class="no-orders">Chargement…</div></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://anadvqaizeineseakpjq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxx'; // ← REMPLACE PAR TA CLÉ ANON
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const publicId = urlParams.get('token');
+    if (!publicId || !publicId.startsWith('rest_')) {
+      alert("Lien invalide.");
+      throw new Error("ID manquant");
+    }
+
+    let restaurantId = null;
+
+    async function init() {
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('public_id', publicId)
+        .single();
+      if (error) throw error;
+      restaurantId = data.id;
+
+      loadOrders('pending', 'pendingOrders');
+      loadOrders('validated', 'confirmedOrders');
+      loadStats();
+      setInterval(() => {
+        loadOrders('pending', 'pendingOrders');
+        loadOrders('validated', 'confirmedOrders');
+        loadStats();
+      }, 5000);
+    }
+
+    async function loadOrders(statusFilter, containerId) {
+      const status = statusFilter === 'pending' ? ['pending'] : ['validated'];
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          table_number,
+          status,
+          created_at,
+          order_items (
+            quantity,
+            dishes ( name, price )
+          )
+        `)
+        .eq('restaurant_id', restaurantId)
+        .in('status', status)
+        .order('created_at', { ascending: false });
+
+      const container = document.getElementById(containerId);
+      if (error) {
+        container.innerHTML = '<div class="no-orders" style="color:red;">Erreur</div>';
+        return;
+      }
+
+      if (data.length === 0) {
+        container.innerHTML = '<div class="no-orders">Aucune commande.</div>';
+        return;
+      }
+
+      container.innerHTML = data.map(order => {
+        const items = order.order_items.map(oi => ({
+          name: oi.dishes.name + (oi.quantity > 1 ? ` (x${oi.quantity})` : ''),
+          price: `${oi.dishes.price.toFixed(2)} MAD`
+        }));
+        const total = order.order_items.reduce((sum, oi) => sum + oi.quantity * oi.dishes.price, 0);
+        return `
+          <div class="order-card">
+            <div class="order-header">
+              <span class="order-table">Table ${order.table_number}</span>
+              ${statusFilter === 'pending' ? 
+                `<button class="confirm-btn" onclick="confirmOrder('${order.id}')">✓ Valider</button>` : 
+                '<small style="color:green;">✅ Validée</small>'
+              }
+            </div>
+            <div class="order-items">
+              ${items.map(i => `${i.name} (${i.price})`).join(', ')}
+            </div>
+            <small>Total: ${total.toFixed(2)} MAD • ${new Date(order.created_at).toLocaleTimeString()}</small>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function confirmOrder(orderId) {
+      const response = await fetch('/api/confirm-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId })
+      });
+      if (response.ok) {
+        loadOrders('pending', 'pendingOrders');
+      } else {
+        alert("Erreur validation");
+      }
+    }
+
+    async function loadStats() {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('orders')
+        .select('order_items(quantity, dishes(price))')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'validated')
+        .gte('created_at', today + 'T00:00:00.000Z')
+        .lte('created_at', today + 'T23:59:59.999Z');
+
+      if (error || !data) return;
+      let total = 0, count = data.length;
+      data.forEach(order => {
+        order.order_items.forEach(oi => {
+          total += oi.quantity * oi.dishes.price;
+        });
+      });
+      document.getElementById('totalSales').textContent = `${total.toFixed(2)} MAD`;
+      document.getElementById('ordersCount').textContent = count;
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        const tabId = `${btn.dataset.tab}Tab`;
+        document.getElementById(tabId).classList.add('active');
+        if (btn.dataset.tab === 'pending') loadOrders('pending', 'pendingOrders');
+        else loadOrders('validated', 'confirmedOrders');
+      });
+    });
+
+    init();
+  </script>
+</body>
+</html>
