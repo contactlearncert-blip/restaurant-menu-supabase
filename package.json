@@ -1,0 +1,18 @@
+{
+  "name": "restaurant-menu-supabase",
+  "version": "1.0.0",
+  "description": "Menu numérique pour restaurant avec Supabase",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "keywords": ["restaurant", "supabase", "vercel"],
+  "author": "Ton Nom",
+  "license": "MIT"
+}
