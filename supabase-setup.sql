@@ -1,12 +1,12 @@
 -- Créer les tables
-CREATE TABLE restaurants (
+CREATE TABLE IF NOT EXISTS restaurants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   public_id TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   email TEXT
 );
 
-CREATE TABLE dishes (
+CREATE TABLE IF NOT EXISTS dishes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE dishes (
   image_path TEXT
 );
 
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
   table_number TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE orders (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
   dish_id UUID REFERENCES dishes(id) ON DELETE CASCADE,
@@ -38,11 +38,12 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 
 -- Politiques de lecture publique
-CREATE POLICY "Public read restaurants" ON restaurants FOR SELECT USING (true);
-CREATE POLICY "Public read dishes" ON dishes FOR SELECT USING (true);
-CREATE POLICY "Public read orders" ON orders FOR SELECT USING (true);
-CREATE POLICY "Public read order_items" ON order_items FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "Public read restaurants" ON restaurants FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "Public read dishes" ON dishes FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "Public read orders" ON orders FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "Public read order_items" ON order_items FOR SELECT USING (true);
 
--- Bucket pour images (à créer dans Storage)
--- Nom: menu-images
--- Règle: accès public en lecture
+-- Créer le bucket pour les images
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('menu-images', 'menu-images', true)
+ON CONFLICT (id) DO NOTHING;

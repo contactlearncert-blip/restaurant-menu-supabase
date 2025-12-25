@@ -47,7 +47,6 @@
   <nav class="categories" id="categoriesNav"></nav>
   <div class="menu-grid" id="menuList">
     <div class="menu-item" style="opacity:0.5;"><div style="height:140px;"></div><h3>Chargement…</h3><p></p><div class="price"></div></div>
-    <div class="menu-item" style="opacity:0.5;"><div style="height:140px;"></div><h3>Chargement…</h3><p></p><div class="price"></div></div>
   </div>
   <button id="orderBtn" class="order-btn-fixed" disabled onclick="showOrderForm()">Passer la commande</button>
   <div id="tableModal" class="modal">
@@ -63,9 +62,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // ✅ CONFIGURATION SUPABASE (à remplacer par ta vraie clé anon)
     const SUPABASE_URL = 'https://anadvqaizeineseakpjq.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYWR2cWFpemVpbmVzZWFrcGpxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjU5NDM0OCwiZXhwIjoyMDgyMTcwMzQ4fQ.gCREitKods5kzWUoXEDMLjvtIUw2tArkDYMj0jqeF-c'; // ← REMPLACE PAR TA CLÉ ANON
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYWR2cWFpemVpbmVzZWFrcGpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1OTQzNDgsImV4cCI6MjA4MjE3MDM0OH0.7qQe5X6X6X6X6X6X6X6X6X6X6X6X6X6X6X6X6X6X6X6';
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -89,7 +87,7 @@
           .single();
         if (error) throw error;
 
-        const { data: dishes, error: err2 } = await supabase
+        const {  dishes, error: err2 } = await supabase
           .from('dishes')
           .select('*')
           .eq('restaurant_id', restaurant.id)
@@ -229,14 +227,13 @@
       }
 
       try {
-        const { data: restaurant, error } = await supabase
+        const {  restaurant, error } = await supabase
           .from('restaurants')
           .select('id')
           .eq('public_id', publicId)
           .single();
         if (error) throw error;
 
-        // ✅ Créer la commande via Edge Function (plus sécurisé)
         const response = await fetch('/api/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -249,7 +246,6 @@
 
         if (!response.ok) throw new Error('Erreur commande');
 
-        // Succès
         currentOrderId = 'sent';
         document.getElementById('orderBtn').textContent = '✅ Commande envoyée !';
         document.getElementById('orderBtn').className = 'order-btn-fixed success';

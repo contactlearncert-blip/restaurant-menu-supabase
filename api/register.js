@@ -8,7 +8,6 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    // ⚠️ Parser manuellement le body (plus robuste)
     const buffer = await req.arrayBuffer();
     const text = new TextDecoder().decode(buffer);
     body = JSON.parse(text);
@@ -17,18 +16,15 @@ export default async function handler(req, res) {
   }
 
   const { name, email } = body;
-
   if (!name?.trim()) {
     return res.status(400).json({ error: 'Nom requis' });
   }
 
-  // 🔒 Utilise la clé SERVICE_ROLE
   const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    'https://anadvqaizeineseakpjq.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYWR2cWFpemVpbmVzZWFrcGpxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjU5NDM0OCwiZXhwIjoyMDgyMTcwMzQ4fQ.gCREitKods5kzWUoXEDMLjvtIUw2tArkDYMj0jqeF-c'
   );
 
-  // Vérifier unicité du nom
   const { data: existing } = await supabaseAdmin
     .from('restaurants')
     .select('id')
@@ -40,10 +36,8 @@ export default async function handler(req, res) {
     return res.status(409).json({ error: 'Nom déjà utilisé' });
   }
 
-  // Générer un ID public sécurisé
   const public_id = 'rest_' + Math.random().toString(36).substring(2, 10);
 
-  // Insérer dans la base
   const { error } = await supabaseAdmin
     .from('restaurants')
     .insert({
@@ -57,9 +51,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 
-  // Générer les liens
-  const client_url = `${process.env.CLIENT_URL}/?token=${public_id}`;
-  const staff_url = `${process.env.STAFF_URL}/staff.html?token=${public_id}`;
+  const client_url = `https://restaurant-menu-supabase.vercel.app/?token=${public_id}`;
+  const staff_url = `https://restaurant-menu-supabase.vercel.app/staff.html?token=${public_id}`;
 
   res.status(201).json({
     restaurant_id: public_id,
