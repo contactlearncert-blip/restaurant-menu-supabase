@@ -1,0 +1,17 @@
+cat > .gitignore <<EOF
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Variables d'environnement (NE JAMAIS POUSSER !)
+.env
+.env.local
+.env.development
+EOF
