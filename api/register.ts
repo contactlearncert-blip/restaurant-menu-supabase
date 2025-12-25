@@ -1,28 +1,24 @@
-// api/register.js
+// api/register.ts
 import { createClient } from '@supabase/supabase-js';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
 
-  let body;
-  try {
-    const buffer = await req.arrayBuffer();
-    const text = new TextDecoder().decode(buffer);
-    body = JSON.parse(text);
-  } catch (err) {
-    return res.status(400).json({ error: 'Body invalide' });
-  }
+  const { name, email } = req.body;
 
-  const { name, email } = body;
   if (!name?.trim()) {
     return res.status(400).json({ error: 'Nom requis' });
   }
 
   const supabaseAdmin = createClient(
-    'https://anadvqaizeineseakpjq.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYWR2cWFpemVpbmVzZWFrcGpxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjU5NDM0OCwiZXhwIjoyMDgyMTcwMzQ4fQ.gCREitKods5kzWUoXEDMLjvtIUw2tArkDYMj0jqeF-c'
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   const { data: existing } = await supabaseAdmin
@@ -51,8 +47,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 
-  const client_url = `https://restaurant-menu-supabase.vercel.app/?token=${public_id}`;
-  const staff_url = `https://restaurant-menu-supabase.vercel.app/staff.html?token=${public_id}`;
+  const client_url = `${process.env.CLIENT_URL}/?token=${public_id}`;
+  const staff_url = `${process.env.STAFF_URL}/staff.html?token=${public_id}`;
 
   res.status(201).json({
     restaurant_id: public_id,
