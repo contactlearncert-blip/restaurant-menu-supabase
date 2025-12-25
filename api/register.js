@@ -1,11 +1,7 @@
-// api/register.ts
-import { createClient } from '@supabase/supabase-js';
-import type { NextApiRequest, NextApiResponse } from 'next';
+// api/register.js
+const { createClient } = require('@supabase/supabase-js');
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
@@ -17,8 +13,8 @@ export default async function handler(
   }
 
   const supabaseAdmin = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
   const { data: existing } = await supabaseAdmin
@@ -55,4 +51,4 @@ export default async function handler(
     client_url,
     staff_url
   });
-}
+};
