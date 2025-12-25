@@ -8,9 +8,12 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    body = await req.json(); // ✅ Parser le JSON
+    // ⚠️ Parser manuellement le body (plus robuste)
+    const buffer = await req.arrayBuffer();
+    const text = new TextDecoder().decode(buffer);
+    body = JSON.parse(text);
   } catch (err) {
-    return res.status(400).json({ error: 'Body invalide' }); // ✅ Gérer les erreurs de parsing
+    return res.status(400).json({ error: 'Body invalide' });
   }
 
   const { name, email } = body;
