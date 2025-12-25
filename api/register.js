@@ -8,12 +8,13 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    body = await req.json();
+    body = await req.json(); // ✅ Parser le JSON
   } catch (err) {
-    return res.status(400).json({ error: 'Body invalide' });
+    return res.status(400).json({ error: 'Body invalide' }); // ✅ Gérer les erreurs de parsing
   }
 
   const { name, email } = body;
+
   if (!name?.trim()) {
     return res.status(400).json({ error: 'Nom requis' });
   }
