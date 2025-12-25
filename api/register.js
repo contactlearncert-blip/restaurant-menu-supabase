@@ -6,11 +6,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Méthode non autorisée' });
   }
 
-  const { name, email } = req.body;
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return res.status(400).json({ error: 'Body invalide' });
+  }
+
+  const { name, email } = body;
   if (!name?.trim()) {
     return res.status(400).json({ error: 'Nom requis' });
   }
 
+  // 🔒 Utilise la clé SERVICE_ROLE
   const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
